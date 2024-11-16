@@ -2,7 +2,15 @@
 const FPS = 30
 // coeficiente de fricción del espacio (0 = sin fricción, 1 = mucha fricción)
 const friction = 0.7
-// friction coefficient of space (0 = no friction, 1 = lots of friction)
+// la distancia máxima que el láser puede recorrer es una fracción del ancho de la pantalla
+const laserDist = 0.6
+// duración de la explosión del láser en segundos
+const laserExplodeDur = 0.1
+// número máximo de láseres en pantalla a la vez
+const laserMax = 10
+// velocidad de los láseres en píxeles por segundo
+const laserSPD = 500
+// coeficiente de fricción del espacio (0 = sin fricción, 1 = mucha fricción)
 const roidJAG = 0.4
 //número inicial de asteroides
 const roidsNum = 3
@@ -57,8 +65,27 @@ function createAsteroidBelt() {
             x = Math.floor(Math.random() * canv.width)
             y = Math.floor(Math.random() * canv.height)
         } while (distBetweenPoints(ship.x, ship.y, x, y) < roidsSize * 2 + ship.r)
-        roids.push(newAsteroid(x, y))
+        roids.push(newAsteroid(x, y, Math.ceil(roidsSize / 2)))
     }
+}
+
+function destroyAsteroid(index) {
+    var x = roids[index].x
+    var y = roids[index].y
+    var r = roids[index].r
+
+    // divide el asteroide en dos si es necesario
+    if (r == Math.ceil(roidsSize / 2)) {
+        // gran asteroide
+        roids.push(newAsteroid(x, y, Math.ceil(roidsSize / 4)))
+        roids.push(newAsteroid(x, y, Math.ceil(roidsSize / 4)))
+    } else if (r == Math.ceil(roidsSize / 4)) {
+        // asteroide mediano
+        roids.push(newAsteroid(x, y, Math.ceil(roidsSize / 8)))
+        roids.push(newAsteroid(x, y, Math.ceil(roidsSize / 8)))
+    }
+    // destruir el asteroide
+    roids.splice(index, 1)
 }
 
 function distBetweenPoints(x1, y1, x2, y2) {
@@ -71,6 +98,10 @@ function explodeShip() {
 
 function keyDown(/** @type {KeyboardEvent} */ ev) {
     switch (ev.keyCode) {
+        // barra espaciadora (disparar láser)
+        case 32:
+            shootLaser()
+            break;
         // flecha izquierda (girar el barco hacia la izquierda)
         case 37:
             ship.rot = turnSpeed / 180 * Math.PI / FPS
