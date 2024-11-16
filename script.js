@@ -1,18 +1,31 @@
 //cuadro por segundo
 const FPS = 30
-//coeficiente de fricción del espacio (0 = no friction, 1 = lots of friction)
+// coeficiente de fricción del espacio (0 = sin fricción, 1 = mucha fricción)
 const friction = 0.7
+// friction coefficient of space (0 = no friction, 1 = lots of friction)
+const roidJAG = 0.4
+//número inicial de asteroides
+const roidsNum = 3
+//Tamaño inicial de los asteroides en píxeles por segundo.
+const roidsSize = 100
+//velocidad inicial máxima de los asteroides en píxeles por segundo
+const roidsSPD = 50
+//número promedio de vértices en cada asteroide
+const roidsVert = 10
 //altura del barco en píxeles
 const shipSize = 30
 //aceleración de la nave en píxeles por segundo
 const shipThrust = 5
 //velocidad de giro en grados por segundo
 const turnSpeed = 360
+// muestra u oculta el punto central del barco
+const showCentreDot = false
 
 /** @type {HTMLCanvasElement} */
 var canv = document.getElementById("gameCanvas")
 var ctx = canv.getContext("2d")
 
+// configura el objeto de la nave espacial
 var ship = {
     x : canv.width / 2,
     y : canv.height / 2,
@@ -21,11 +34,15 @@ var ship = {
     a : 90 / 180 * Math.PI,
     rot : 0,
     thrusting : false,
-    thrusting : {
+    thrust : {
         x : 0,
         y : 0
     }
 }
+
+//establecer un asteroide
+var roids = []
+createAsteroidBelt()
 
 //configurar controladores de eventos
 document.addEventListener("keydown" , keyDown)
@@ -33,6 +50,24 @@ document.addEventListener("keyup" , keyUp)
 
 //Configuracion del bucle del juego
 setInterval(update, 1000 / FPS)
+
+function createAsteroidBelt() {
+    roids = []
+    var x, y
+    for (var i = 0; i < roidsNum; i ++){
+        // ubicación aleatoria del asteroide (sin tocar la nave espacial)
+        do {
+            x = Math.floor(Math.random() * canv.width)
+            y = Math.floor(Math.random() * canv.height)
+        } while (distBetweenPoints(ship.x, ship.y, x, y) < roidsSize * 2 + ship.r)
+        roids.push(newAsteroid(x, y))
+    }
+}
+
+function distBetweenPoints(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
+}
+
 
 function keyDown(/** @type {KeyboardEvent} */ ev) {
     switch (ev.keyCode) {
@@ -70,6 +105,21 @@ function keyUp(/** @type {KeyboardEvent} */ ev) {
             ship.rot = 0
             break;
     }
+}
+
+function newAsteroid(x, y) {
+    var roid = {
+        //en radianes
+        a : Math.random() * Math.PI * 2,
+        offs: [],
+        r : roidsSize / 2,
+        vert : Math.floor(Math.random() * (roidsVert + 1) + roidsVert / 2),
+        x : x,
+        y : y,
+        xv : Math.random() * roidsSPD / FPS * (Math.random() < 0.5 ? 1 : -1),
+        yv : Math.random() * roidsSPD / FPS * (Math.random() < 0.5 ? 1 : -1)
+    }
+    return roid
 }
 
 function update() {
@@ -133,6 +183,54 @@ function update() {
     ctx.closePath()
     ctx.stroke()
 
+
+    //dibujar los asteroides
+    ctx.strokeStyle = "slatergrey"
+    ctx.lineWidth = shipSize / 20
+    var a, r, x, y, offs, vert
+    for (var i = 0; i < roids.length; i ++){
+
+        //obtener las propiedades del asteroide
+        a = roids[i].a
+        r = roids[i].r
+        x = roids[i].x
+        y = roids[i].y
+        offs = roids[i].offs
+        vert = roids[i].vert
+
+        //dibujar un camino
+        ctx.beginPath()
+        ctx.moveTo(
+            x + r * offs[0] * Math.cos(a),
+            y + r * offs[0] * Math.sin(a)
+        )
+
+        //dibujar polígono
+        for (var j = 1; j < vert; j++){
+            ctx.lineTo (
+                x + r * offs[j] * Math.cos(a + j * Math.PI * 2 / vert),
+                y + r * offs[j] * Math.sin(a + j * Math.PI * 2 / vert)
+            )
+        }
+        ctx.closePath()
+        ctx.stroke()
+
+        //mover el asteroide
+        roids[i].x += roids[i].xv
+        roids[i].y += roids[i].yv
+
+        //manejar el borde de la pantalla
+        if (roids[i].x < 0 - roids[i].r) {
+            roids[i].x = canv.width + roids[i].r
+        } else if (roids[i].x > canv.width + roids[i].r) {
+            roids[i].x = 0 - roids[i].r
+        }
+        if (roids[i].x < 0 - roids[i].r) {
+            roids[i].x = canv.width + roids[i].r
+        } else if (roids[i].x > canv.width + roids[i].r) {
+            roids[i].x = 0 - roids[i].r
+        }
+    }
     //girar el barco
     ship.a += ship.rot
 
@@ -151,8 +249,29 @@ function update() {
     } else if (ship.y > canv.height + ship.r) {
         ship.y = 0 - ship.r
     }
+}
 
     //punto central
-    ctx.fillStyle = "red"
-    ctx.fillRect(ship.x - 1, ship.y - 1, 2, 2)
-}
+    if (showCentreDot) {
+        ctx.fillStyle = "red"
+        ctx.fillRect(ship.x - 1, ship.y - 1, 2, 2)
+    }
+
+    // rotar el barco
+    ship.a += ship.rot
+
+    // mover el barco
+    ship.x += ship.thrust.x
+    ship.y += ship.thrust.y
+
+    // manejar el borde de la pantalla
+    if (ship.x < 0 - ship.r) {
+        ship.x = canv.width + ship.r;
+    } else if (ship.x > canv.width + ship.r) {
+        ship.x = 0 - ship.r;
+    }
+    if (ship.y < 0 - ship.r) {
+        ship.y = canv.height + ship.r;
+    } else if (ship.y > canv.height + ship.r) {
+        ship.y = 0 - ship.r;
+    }
